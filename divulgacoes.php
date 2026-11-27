@@ -1,14 +1,22 @@
 <?php
-// Lista os eventos de divulgação junto com o livro e o convidado associados.
+// Exibe os eventos de divulgação associados às publicações e aos convidados.
+// Carrega a configuração de acesso ao banco.
 require_once 'config/database.php';
 
+// Inicializa a coleção que receberá os resultados da consulta.
 $divulgacoes = [];
+// Guarda eventuais falhas de banco para exibição na página.
 $erro = '';
+// Lê uma mensagem enviada por outra página.
 $mensagem = $_GET['mensagem'] ?? '';
+// Define sucesso como tipo padrão da mensagem.
 $tipoMensagem = $_GET['tipo'] ?? 'sucesso';
 
+// Tenta consultar as divulgações dentro de um bloco protegido.
 try {
+    // Abre a conexão com o banco.
     $pdo = (new Database())->conectar();
+    // Consulta eventos, convidados e publicações relacionadas.
     $divulgacoes = $pdo->query(
         'SELECT d.*, c.nome AS convidado, c.email, p.id_publicacao, p.titulo
          FROM divulgacao d
@@ -16,6 +24,7 @@ try {
          JOIN publicacao p ON p.id_divulgacao = d.id_divulgacao
          ORDER BY d.data_evento DESC'
     )->fetchAll();
+// Converte falhas de banco em uma mensagem segura.
 } catch (PDOException $exception) {
     $erro = Database::mensagemErro($exception, 'carregar as divulgações');
 }

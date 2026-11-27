@@ -1,5 +1,6 @@
 <?php
-// Cadastro e listagem de autores.
+// Permite cadastrar autores e apresenta todos os autores existentes.
+// Importa a classe responsável pela conexão.
 require_once 'config/database.php';
 $erro = '';
 $autores = [];
@@ -9,17 +10,23 @@ $mensagem = $_GET['mensagem'] ?? '';
 $tipoMensagem = $_GET['tipo'] ?? 'sucesso';
 
 try {
+    // Abre a conexão com o banco.
     $pdo = (new Database())->conectar();
+    // Trata o envio do formulário apenas quando o método é POST.
     if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+        // Normaliza nome e e-mail enviados pelo usuário.
         $nomeFormulario = is_string($_POST['nome'] ?? null) ? trim($_POST['nome']) : '';
         $emailFormulario = is_string($_POST['email'] ?? null) ? trim($_POST['email']) : '';
+        // Valida os campos antes de gravar.
         if ($nomeFormulario === '' || !filter_var($emailFormulario, FILTER_VALIDATE_EMAIL)) {
             $erro = 'Informe um nome e um e-mail válido para o autor.';
         } else {
+            // Insere o novo autor usando parâmetros preparados.
             $pdo->prepare('INSERT INTO autores (nome, email) VALUES (?, ?)')->execute([$nomeFormulario, $emailFormulario]);
             header('Location: autores.php?mensagem=' . urlencode('Autor cadastrado'));
             exit;
         }
+        // Lista os autores e informa quantas publicações cada um possui.
     }
     $autores = $pdo->query(
         'SELECT a.*,
@@ -27,6 +34,7 @@ try {
          FROM autores a
          ORDER BY a.nome'
     )->fetchAll();
+// Captura falhas de cadastro ou consulta.
 } catch (PDOException $exception) {
     $erro = Database::mensagemErro($exception, 'salvar ou carregar os autores');
 }
