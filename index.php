@@ -1,5 +1,6 @@
 <?php
-// Página inicial: lista todas as publicações cadastradas.
+// Lista as publicações com seus autores, tipos e divulgações.
+// Importa conexão, configuração e representação de livro.
 require_once 'config/database.php';
 require_once 'classes/Livro.php';
 
@@ -8,8 +9,11 @@ $erro = '';
 $pdo = null;
 $mensagem = $_GET['mensagem'] ?? '';
 $tipoMensagem = $_GET['tipo'] ?? 'sucesso';
+// Protege o carregamento da página contra falhas da conexão ou da consulta.
+// Consulta as publicações dentro de uma tentativa protegida.
 try {
     $pdo = (new Database())->conectar();
+    // Recupera publicações e todos os dados relacionados para montar a tabela.
     $livros = $pdo->query(
         "SELECT p.*, t.nome AS tipo, d.data_evento, d.local_evento,
                 c.nome AS convidado,
@@ -23,9 +27,11 @@ try {
          LEFT JOIN convidados c ON c.id_convidado = d.id_convidado
          ORDER BY p.id_publicacao DESC"
     )->fetchAll();
+// Registra uma falha segura na interface caso o banco não responda.
 } catch (PDOException $exception) {
     $erro = Database::mensagemErro($exception, 'carregar as publicações');
 }
+// Usa a quantidade obtida para mostrar o total na interface.
 $totalLivros = count($livros);
 ?>
 <!DOCTYPE html><html lang="pt-BR"><head><meta charset="UTF-8"><title>Plataforma de Livros</title><link rel="stylesheet" href="assets/style.css"></head>

@@ -1,7 +1,9 @@
 <?php
-// Cadastra uma publicação com autores e, opcionalmente, um evento de divulgação.
+// Cadastra ou edita uma publicação, seus autores e sua divulgação opcional.
+// Carrega a configuração necessária para acessar o banco.
 require_once 'config/database.php';
 
+// Identifica edição quando um identificador é recebido pela URL.
 $id = (int)($_GET['id'] ?? 0);
 $erro = '';
 $mensagem = $_GET['mensagem'] ?? '';
@@ -24,11 +26,15 @@ $funcoes = ['Autor', 'Coautor', 'Revisor'];
 $autoriasEnviadas = null;
 
 try {
+    // Abre a conexão usada por consultas e alterações.
     $pdo = (new Database())->conectar();
+    // Carrega autores disponíveis no formulário.
     $autores = $pdo->query('SELECT id_autor, nome FROM autores ORDER BY nome')->fetchAll();
     $tipos = $pdo->query('SELECT id_tipo_publicacao, nome FROM tipo_publicacao ORDER BY nome')->fetchAll();
 
+    // Quando há identificador, carrega os dados existentes para edição.
     if ($id > 0) {
+        // Prepara a consulta dos dados principais da publicação existente.
         $consulta = $pdo->prepare(
             'SELECT p.*, d.data_evento, d.local_evento,
                     c.id_convidado, c.nome AS convidado_nome, c.email AS convidado_email
@@ -38,11 +44,15 @@ try {
              WHERE p.id_publicacao = ?'
         );
         $consulta->execute([$id]);
+        // Carrega as relações entre publicação e autores.
+        // Recupera a publicação e sua divulgação.
         $livroEncontrado = $consulta->fetch();
+        // Cancela a edição quando a publicação não existe.
         if (!$livroEncontrado) {
             header('Location: index.php?mensagem=' . urlencode('Publicação não encontrada') . '&tipo=erro');
             exit;
         }
+        // Guarda os dados existentes no formato usado pelo formulário.
         $livro = $livroEncontrado;
         $consulta = $pdo->prepare(
             'SELECT id_autor, funcao FROM publicacao_autor WHERE id_publicacao = ? ORDER BY id_autor'
@@ -54,7 +64,9 @@ try {
         }
     }
 
+    // Processa os dados enviados pelo formulário de cadastro ou edição.
     if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+        // Normaliza os textos e campos principais da publicação.
         $livro['titulo'] = is_string($_POST['titulo'] ?? null) ? trim($_POST['titulo']) : '';
         $livro['resumo'] = is_string($_POST['resumo'] ?? null) ? trim($_POST['resumo']) : '';
         $livro['data_publicacao'] = is_string($_POST['data_publicacao'] ?? null) ? $_POST['data_publicacao'] : '';
@@ -63,6 +75,7 @@ try {
         $livro['local_evento'] = is_string($_POST['local_evento'] ?? null) ? trim($_POST['local_evento']) : '';
         $livro['convidado_nome'] = is_string($_POST['convidado_nome'] ?? null) ? trim($_POST['convidado_nome']) : '';
         $livro['convidado_email'] = is_string($_POST['convidado_email'] ?? null) ? trim($_POST['convidado_email']) : '';
+        // Recebe a matriz de autores enviada pelo formulário.
         $autoriasEnviadas = $_POST['autores'] ?? [];
         $autorias = is_array($autoriasEnviadas)
             ? array_values(array_filter($autoriasEnviadas, 'is_array'))
@@ -71,14 +84,17 @@ try {
             $autorias = [['id_autor' => '', 'funcao' => 'Autor']];
         }
 
+        // Detecta se o usuário informou algum dado da divulgação opcional.
         $eventoInformado = $livro['data_evento'] !== ''
             || $livro['local_evento'] !== ''
             || $livro['convidado_nome'] !== ''
             || $livro['convidado_email'] !== '';
+        // Valida a data principal da publicação.
         $dataPublicacao = DateTime::createFromFormat('!Y-m-d', $livro['data_publicacao']);
         $dataPublicacaoErros = DateTime::getLastErrors();
         $dataPublicacaoValida = $dataPublicacao && (!$dataPublicacaoErros || ($dataPublicacaoErros['warning_count'] === 0 && $dataPublicacaoErros['error_count'] === 0));
         $dataEventoValida = true;
+        // Valida a data do evento somente quando ele foi informado.
         if ($eventoInformado) {
             $dataEvento = DateTime::createFromFormat('!Y-m-d', $livro['data_evento']);
             $dataEventoErros = DateTime::getLastErrors();
@@ -87,6 +103,7 @@ try {
 
         $idsAutores = [];
         $autoriasValidas = [];
+        // Analisa cada autor enviado e aceita somente identificador e função válidos.
         foreach ($autorias as $autoria) {
             if (!is_array($autoria)) {
                 continue;
@@ -115,6 +132,7 @@ try {
         } elseif (count($autoriasValidas) !== count($autorias)) {
             $erro = 'Cada autor precisa ter um ID e uma função válida.';
         } else {
+            // Confere se o tipo e todos os autores existem no banco.
             $tipoExiste = $pdo->prepare('SELECT COUNT(*) FROM tipo_publicacao WHERE id_tipo_publicacao = ?');
             $tipoExiste->execute([$livro['id_tipo_publicacao']]);
             $autoresExistem = $pdo->prepare(
@@ -126,7 +144,9 @@ try {
             if ((int)$tipoExiste->fetchColumn() !== 1 || (int)$autoresExistem->fetchColumn() !== count($idsAutores)) {
                 $erro = 'O tipo de publicação ou um dos autores selecionados não existe.';
             } else {
+                // Agrupa todas as alterações em uma única transação.
                 $pdo->beginTransaction();
+                // Distingue atualização de cadastro pelo identificador da publicação.
                 if ($id > 0) {
                     $pdo->prepare(
                         'UPDATE publicacao SET titulo = ?, resumo = ?, data_publicacao = ?, id_tipo_publicacao = ?
@@ -136,6 +156,7 @@ try {
                         $livro['id_tipo_publicacao'], $id
                     ]);
                     if ($eventoInformado && $livro['id_divulgacao']) {
+                        // Atualiza evento e convidado já existentes.
                         $pdo->prepare(
                             'UPDATE convidados SET nome = ?, email = ? WHERE id_convidado = ?'
                         )->execute([$livro['convidado_nome'], $livro['convidado_email'], $livro['id_convidado']]);
@@ -143,6 +164,7 @@ try {
                             'UPDATE divulgacao SET data_evento = ?, local_evento = ? WHERE id_divulgacao = ?'
                         )->execute([$livro['data_evento'], $livro['local_evento'], $livro['id_divulgacao']]);
                     } elseif ($eventoInformado) {
+                        // Cria evento e convidado quando a publicação ainda não os possui.
                         $pdo->prepare('INSERT INTO convidados (nome, email) VALUES (?, ?)')->execute([
                             $livro['convidado_nome'], $livro['convidado_email']
                         ]);
@@ -154,6 +176,7 @@ try {
                         $pdo->prepare('UPDATE publicacao SET id_divulgacao = ? WHERE id_publicacao = ?')
                             ->execute([$idDivulgacao, $id]);
                     } elseif ($livro['id_divulgacao']) {
+                        // Remove apenas a divulgação quando o usuário limpa todos os dados do evento.
                         $pdo->prepare('UPDATE publicacao SET id_divulgacao = NULL WHERE id_publicacao = ?')
                             ->execute([$id]);
                         $pdo->prepare('DELETE FROM divulgacao WHERE id_divulgacao = ?')
@@ -165,12 +188,14 @@ try {
                         )->execute([$livro['id_convidado'], $livro['id_convidado']]);
                     }
                     $pdo->prepare('DELETE FROM publicacao_autor WHERE id_publicacao = ?')->execute([$id]);
+                    // Define a mensagem final de acordo com o estado da divulgação.
                     $mensagem = $eventoInformado
                         ? 'Publicação e divulgação atualizadas'
                         : ($livro['id_divulgacao'] ? 'Publicação atualizada e divulgação removida' : 'Publicação atualizada');
                 } else {
                     $idDivulgacao = null;
                     if ($eventoInformado) {
+                        // Cadastra primeiro o convidado e depois o evento.
                         $pdo->prepare('INSERT INTO convidados (nome, email) VALUES (?, ?)')->execute([
                             $livro['convidado_nome'], $livro['convidado_email']
                         ]);
@@ -180,6 +205,7 @@ try {
                         )->execute([$livro['data_evento'], $livro['local_evento'], $idConvidado]);
                         $idDivulgacao = $pdo->lastInsertId();
                     }
+                    // Insere a publicação principal e obtém seu novo identificador.
                     $pdo->prepare(
                         'INSERT INTO publicacao (titulo, resumo, data_publicacao, id_divulgacao, id_tipo_publicacao)
                          VALUES (?, ?, ?, ?, ?)'
@@ -193,18 +219,21 @@ try {
                         : 'Publicação cadastrada sem divulgação';
                 }
 
+                // Prepara o vínculo entre publicação e cada autor validado.
                 $inserirAutoria = $pdo->prepare(
                     'INSERT INTO publicacao_autor (id_publicacao, id_autor, funcao) VALUES (?, ?, ?)'
                 );
                 foreach ($autoriasValidas as $autoria) {
                     $inserirAutoria->execute([$id, $autoria['id_autor'], $autoria['funcao']]);
                 }
+                // Confirma toda a operação somente depois dos vínculos serem criados.
                 $pdo->commit();
                 header('Location: index.php?mensagem=' . urlencode($mensagem));
                 exit;
             }
         }
     }
+// Captura falhas, desfaz alterações pendentes e informa o erro ao usuário.
 } catch (PDOException $exception) {
     if (isset($pdo) && $pdo->inTransaction()) {
         $pdo->rollBack();
