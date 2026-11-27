@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Plataforma de Livros</title>
+    <link rel="stylesheet" href="style.css">
+    <script src="app.js" defer></script>
+</head>
+<body>
+    <header class="topo">
+        <div class="container topo-conteudo">
+            <a class="marca" href="index.html">Plataforma de Livros</a>
+            <nav aria-label="Navegação principal">
+                <a href="../index.php">Publicações</a>
+                <a href="../autores.php">Autores</a>
+                <a href="../divulgacoes.php">Divulgações</a>
+            </nav>
+        </div>
+    </header>
+
+    <main class="container">
+        <section class="apresentacao">
+            <h1>Publicação e divulgação de livros</h1>
+            <p>
+                Cadastre livros, associe seus autores e organize eventos de divulgação.
+                Escolha uma opção para começar.
+            </p>
+            <a class="botao botao-principal" href="../livro_form.php">Cadastrar livro e divulgação</a>
+        </section>
+
+        <section class="atalhos" aria-labelledby="titulo-atalhos">
+            <div class="titulo-secao">
+                <div>
+                    <h2 id="titulo-atalhos">O que você deseja fazer?</h2>
+                    <p>As informações são salvas pelo sistema PHP no banco de dados.</p>
+                </div>
+                <label class="busca">
+                    <span>Buscar uma opção</span>
+                    <input id="buscaAcoes" type="search" placeholder="Ex.: autores, evento">
+                </label>
+            </div>
+
+            <p id="resultadoBusca" class="resultado" aria-live="polite"></p>
+
+            <div class="grade-acoes" id="gradeAcoes">
+                <article class="cartao-acao" data-termos="publicações livros catálogo listar editar excluir">
+                    <h3>Publicações</h3>
+                    <p>Consulte os livros cadastrados, pesquise, edite ou remova uma publicação.</p>
+                    <a class="botao" href="../index.php">Ver publicações</a>
+                </article>
+
+                <article class="cartao-acao" data-termos="cadastrar livro publicação novo">
+                    <h3>Cadastrar publicação</h3>
+                    <p>Adicione os dados do livro e seus autores. O evento de divulgação pode ser incluído agora ou depois.</p>
+                    <a class="botao" href="../livro_form.php">Cadastrar livro</a>
+                </article>
+
+                <article class="cartao-acao" data-termos="autores autor cadastrar editar">
+                    <h3>Autores</h3>
+                    <p>Cadastre e consulte autores e veja quantas publicações possuem.</p>
+                    <a class="botao" href="../autores.php">Gerenciar autores</a>
+                </article>
+
+                <article class="cartao-acao" data-termos="divulgação evento agendar convidado">
+                    <h3>Publicação e divulgação</h3>
+                    <p>Cadastre o livro com um evento ou escolha uma publicação existente para editá-la.</p>
+                    <a class="botao" href="../index.php">Ver publicações</a>
+                </article>
+
+                <article class="cartao-acao" data-termos="divulgações eventos consultar editar excluir">
+                    <h3>Divulgações</h3>
+                    <p>Consulte, edite ou exclua os eventos de divulgação cadastrados.</p>
+                    <a class="botao" href="../divulgacoes.php">Ver divulgações</a>
+                </article>
+            </div>
+        </section>
+
+        <section class="nota" aria-label="Como usar">
+            <h2>Como começar</h2>
+            <p>
+                Primeiro cadastre os autores. Depois, cadastre o livro, associe suas
+                autorias e preencha os dados do evento de divulgação.
+            </p>
+        </section>
+    </main>
+</body>
+</html>
